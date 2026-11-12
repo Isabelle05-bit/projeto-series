@@ -1,0 +1,19 @@
+.conteudo {
+  padding: 24px 16px;
+}
+
+.pagina {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.pagina p {
+  margin: 8px 0;
+}
+
+.botoes {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
