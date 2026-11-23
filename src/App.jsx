@@ -1,56 +1,41 @@
-import { useState } from "react";
-import { Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import NavBar from "./Components/NavBar/NavBar";
+import Footer from "./Components/Footer/Footer";
 import Home from "./pages/Home";
 import Sobre from "./pages/Sobre";
 import Cadastro from "./pages/Cadastro";
 import Lista from "./pages/Lista";
 import Editar from "./pages/Editar";
-import seriesIniciais from "./data/seriesIniciais";
-import "./App.css";
+import NaoEncontrada from "./pages/NaoEncontrada";
+
+// Volta ao topo sempre que a rota muda
+function RolarParaTopo() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 
 function App() {
-
-  const [series, setSeries] = useState(seriesIniciais);
-
-  function adicionarSerie(serie) {
-    setSeries([...series, { ...serie, id: Date.now() }]);
-  }
-
-  function atualizarSerie(serieAtualizada) {
-    setSeries(
-      series.map((serie) =>
-        serie.id === serieAtualizada.id ? serieAtualizada : serie
-      )
-    );
-  }
-
-  function excluirSerie(id) {
-    setSeries(series.filter((serie) => serie.id !== id));
-  }
-
   return (
     <>
+      <RolarParaTopo />
       <NavBar />
 
-      <main className="conteudo">
+      <main>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/sobre" element={<Sobre />} />
-          <Route
-            path="/cadastro"
-            element={<Cadastro onAdicionar={adicionarSerie} />}
-          />
-          <Route
-            path="/series"
-            element={<Lista series={series} onExcluir={excluirSerie} />}
-          />
-          <Route
-            path="/editar/:id"
-            element={<Editar series={series} onAtualizar={atualizarSerie} />}
-          />
+          <Route path="/cadastro" element={<Cadastro />} />
+          <Route path="/series" element={<Lista />} />
+          <Route path="/editar/:id" element={<Editar />} />
+          <Route path="*" element={<NaoEncontrada />} />
         </Routes>
       </main>
+
+      <Footer />
     </>
   );
 }

@@ -1,146 +1,146 @@
 import { useState } from "react";
-import "./SerieForm.css";
+import Box from "@mui/material/Box";
+import TextField from "@mui/material/TextField";
+import Autocomplete from "@mui/material/Autocomplete";
+import Button from "@mui/material/Button";
+import Alert from "@mui/material/Alert";
+import SaveIcon from "@mui/icons-material/Save";
+import { categorias, formVazio, validarSerie } from "../../utils/validacao";
 
-const formVazio = {
-  titulo: "",
-  temporadas: "",
-  dataLancamento: "",
-  diretor: "",
-  produtora: "",
-  categoria: "",
-  dataAssistida: ""
-};
-
-const categorias = [
-  "Ação",
-  "Comédia",
-  "Drama",
-  "Terror",
-  "Ficção científica",
-  "Suspense"
-];
-
-
-function SerieForm({ serieInicial, onSalvar, textoBotao = "Cadastrar Série" }) {
-  const [form, setForm] = useState(serieInicial || formVazio);
+// Formulário usado no cadastro e na edição.
+// onSalvar recebe os dados e deve retornar uma Promise (requisição à API).
+function SerieForm({ serieInicial, onSalvar, onCancelar, textoBotao = "Cadastrar série" }) {
+  const [form, setForm] = useState(() => ({ ...formVazio, ...serieInicial }));
   const [erros, setErros] = useState({});
-  const [mensagem, setMensagem] = useState("");
-  const [tipoMensagem, setTipoMensagem] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [mensagem, setMensagem] = useState(null);
+
+  function alterarCampo(nome, valor) {
+    setForm((atual) => ({ ...atual, [nome]: valor }));
+    // Remove o erro do campo assim que o usuário mexe nele
+    setErros((atuais) => ({ ...atuais, [nome]: undefined }));
+    setMensagem(null);
+  }
 
   function handleChange(e) {
-    const { name, value } = e.target;
-
-    setForm({
-      ...form,
-      [name]: value
-    });
-
-    // Remove o erro do campo assim que o usuário mexe nele
-    setErros({ ...erros, [name]: "" });
-    setMensagem("");
+    alterarCampo(e.target.name, e.target.value);
   }
 
-  function validar() {
-    const novosErros = {};
-
-    if (form.titulo.trim() === "") novosErros.titulo = "Informe o título.";
-
-    if (form.temporadas === "") {
-      novosErros.temporadas = "Informe o número de temporadas.";
-    } else if (Number(form.temporadas) < 1) {
-      novosErros.temporadas = "Informe pelo menos uma temporada.";
-    }
-
-    if (form.dataLancamento === "") novosErros.dataLancamento = "Informe a data de lançamento.";
-    if (form.diretor.trim() === "") novosErros.diretor = "Informe o diretor.";
-    if (form.produtora.trim() === "") novosErros.produtora = "Informe a produtora.";
-    if (form.categoria === "") novosErros.categoria = "Selecione uma categoria.";
-
-    if (form.dataAssistida === "") {
-      novosErros.dataAssistida = "Informe a data em que assistiu.";
-    } else if (form.dataLancamento && form.dataAssistida < form.dataLancamento) {
-      novosErros.dataAssistida = "Não pode ser anterior à data de lançamento.";
-    }
-
-    return novosErros;
-  }
-
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
 
-    const novosErros = validar();
+    const novosErros = validarSerie(form);
     setErros(novosErros);
 
     if (Object.keys(novosErros).length > 0) {
-      setMensagem("Preencha corretamente os campos destacados.");
-      setTipoMensagem("erro");
+      setMensagem({ tipo: "error", texto: "Preencha corretamente os campos destacados." });
       return;
     }
 
-    onSalvar(form);
+    const dados = {
+      ...form,
+      title: form.title.trim(),
+      director: form.director.trim(),
+      production: form.production.trim(),
+      category: form.category.trim(),
+      seasons: Number(form.seasons),
+    };
 
-    setMensagem("Série salva com sucesso!");
-    setTipoMensagem("sucesso");
-
-    // No cadastro, limpa o formulário para uma nova série
-    if (!serieInicial) {
-      setForm(formVazio);
+    setEnviando(true);
+    try {
+      await onSalvar(dados);
+      setMensagem({ tipo: "success", texto: `"${dados.title}" foi salva com sucesso!` });
+      // No cadastro, limpa o formulário para uma nova série
+      if (!serieInicial) setForm(formVazio);
+    } catch (error) {
+      setMensagem({ tipo: "error", texto: error.message || "Não foi possível salvar a série." });
+    } finally {
+      setEnviando(false);
     }
   }
 
-  // Monta um campo com label, input e mensagem de erro
-  function campo(nome, label, props) {
-    return (
-      <div className="campo">
-        <label htmlFor={nome}>{label}</label>
-        <input
-          id={nome}
-          name={nome}
-          value={form[nome]}
-          onChange={handleChange}
-          className={erros[nome] ? "invalido" : ""}
-          {...props}
-        />
-        {erros[nome] && <span className="erro-campo">{erros[nome]}</span>}
-      </div>
-    );
+  // Propriedades comuns a todos os campos de texto
+  function campo(nome, label, extras = {}) {
+    return {
+      id: nome,
+      name: nome,
+      label,
+      value: form[nome],
+      onChange: handleChange,
+      error: Boolean(erros[nome]),
+      helperText: erros[nome] || extras.helperText || " ",
+      required: true,
+      disabled: enviando,
+      ...extras,
+    };
   }
 
+  const campoData = { slotProps: { inputLabel: { shrink: true } } };
+
   return (
-    <form className="serie-form" onSubmit={handleSubmit} noValidate>
-      {campo("titulo", "Título", { type: "text", placeholder: "Nome da série" })}
-      {campo("temporadas", "Número de temporadas", { type: "number", min: "1", placeholder: "Ex: 5" })}
-      {campo("dataLancamento", "Data de lançamento da temporada", { type: "date" })}
-      {campo("diretor", "Diretor", { type: "text", placeholder: "Nome do diretor" })}
-      {campo("produtora", "Produtora", { type: "text", placeholder: "Ex: Netflix" })}
+    <Box component="form" onSubmit={handleSubmit} noValidate aria-label="Formulário de série">
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+          columnGap: 2,
+          rowGap: 0.5,
+        }}
+      >
+        <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
+          <TextField {...campo("title", "Título", { placeholder: "Ex: Dark", autoFocus: !serieInicial })} />
+        </Box>
 
-      <div className="campo">
-        <label htmlFor="categoria">Categoria</label>
-        <select
-          id="categoria"
-          name="categoria"
-          value={form.categoria}
-          onChange={handleChange}
-          className={erros.categoria ? "invalido" : ""}
-        >
-          <option value="">Selecione uma categoria</option>
-          {categorias.map((categoria) => (
-            <option key={categoria} value={categoria}>{categoria}</option>
-          ))}
-        </select>
-        {erros.categoria && <span className="erro-campo">{erros.categoria}</span>}
-      </div>
+        <TextField
+          {...campo("seasons", "Número de temporadas", {
+            type: "number",
+            slotProps: { htmlInput: { min: 1, step: 1 } },
+          })}
+        />
 
-      {campo("dataAssistida", "Data em que assistiu", { type: "date" })}
+        <Autocomplete
+          freeSolo
+          options={categorias}
+          inputValue={form.category}
+          onInputChange={(_, valor) => alterarCampo("category", valor)}
+          disabled={enviando}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              id="category"
+              name="category"
+              label="Categoria"
+              required
+              error={Boolean(erros.category)}
+              helperText={erros.category || "Escolha da lista ou digite uma nova"}
+            />
+          )}
+        />
 
-      <button type="submit">{textoBotao}</button>
+        <TextField {...campo("releaseDate", "Data de lançamento da temporada", { type: "date", ...campoData })} />
+        <TextField {...campo("watchedAt", "Data em que assistiu", { type: "date", ...campoData })} />
+
+        <TextField {...campo("director", "Diretor", { placeholder: "Nome do diretor" })} />
+        <TextField {...campo("production", "Produtora", { placeholder: "Ex: Netflix, HBO, AMC" })} />
+      </Box>
 
       {mensagem && (
-        <div className={`mensagem ${tipoMensagem}`} role="alert">
-          {mensagem}
-        </div>
+        <Alert severity={mensagem.tipo} variant="filled" sx={{ mt: 1, mb: 2 }} role="alert">
+          {mensagem.texto}
+        </Alert>
       )}
-    </form>
+
+      <Box sx={{ display: "flex", gap: 1.5, mt: 1, flexWrap: "wrap" }}>
+        <Button type="submit" variant="contained" size="large" startIcon={<SaveIcon />} loading={enviando}>
+          {textoBotao}
+        </Button>
+        {onCancelar && (
+          <Button variant="outlined" color="inherit" size="large" onClick={onCancelar} disabled={enviando}>
+            Cancelar
+          </Button>
+        )}
+      </Box>
+    </Box>
   );
 }
 
